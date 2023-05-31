@@ -1,0 +1,6 @@
+CREATE TABLE machine (
+	machine_id INTEGER PRIMARY KEY,
+	user_id INTEGER NOT NULL UNIQUE,
+	data TEXT NOT NULL,
+	state TEXT NOT NULL
+);
