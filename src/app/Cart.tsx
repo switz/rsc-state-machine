@@ -27,7 +27,6 @@ export default ({ data }: Props) => {
     }
   );
   const activeMachine = optimisticMachine ?? data;
-  console.log(optimisticMachine?.context, data?.context);
 
   const cart = activeMachine?.context?.cart ?? [];
 

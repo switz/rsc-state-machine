@@ -34,34 +34,46 @@ const saveCart = (cart) => {
   return cart;
 };
 
+// server action
 export const addItem = async (id: number) => {
   try {
+    // artificial delay
     await sleep(DELAY);
 
+    // get existing state machine
     const cart = getCart();
 
+    // state machine transition
     cart.send('ADD_TO_CART', {
       id,
     });
 
-    if (Math.random() < 0.9) {
+    // random error 30% of the time
+    if (Math.random() < 0.3) {
       throw new Error('Random Error');
     }
 
+    // persist state machine to your db (in this case sqlite)
     saveCart(cart);
 
+    // tell the client everything is ok
     return { id };
   } catch (err) {
-    // const cart = getCart();
+    // this commented code would trigger an error on the server
+    /*
+      const cart = getCart();
 
-    // cart.send('ERROR', {
-    //   message: 'There was an error adding to cart, please try again',
-    // });
+      cart.send('ERROR', {
+        message: 'There was an error adding to cart, please try again',
+      });
 
-    // saveCart(cart);
+      saveCart(cart);
+    */
 
     revalidatePath('/');
 
+    // but instead, we actually just tell the client there was
+    // an error since we don't want to persist it
     return { id, error: true };
   }
 };
