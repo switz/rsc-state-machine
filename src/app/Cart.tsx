@@ -1,13 +1,19 @@
 'use client';
+import { AnimatePresence, motion } from 'framer-motion';
 import ShoppingCartIcon from '@heroicons/react/24/outline/ShoppingCartIcon';
-import { experimental_useOptimistic as useOptimistic, useState } from 'react';
+import { experimental_useOptimistic as useOptimistic, useRef, useState } from 'react';
 import { interpret } from 'xstate';
 import shoppingMachine from './ShoppingMachine';
 import { addItem, cartBack, checkoutCart, emptyCart, pay, saveInfo } from './actions';
+import clsx from 'clsx';
 
 interface Props {
   data?: any;
 }
+
+const items = ['shoes', 'backpack', 'tv', 'washcloth', 'soap', 'cheese'];
+
+const randomItem = () => items[Math.floor(Math.random() * items.length)];
 
 export default ({ data }: Props) => {
   const [errors, setErrors] = useState<any>([]);
@@ -16,8 +22,9 @@ export default ({ data }: Props) => {
     (state, action: any) => {
       const interpreter = interpret(shoppingMachine);
 
-      interpreter.start(data);
-      interpreter.send(action.action, action.data);
+      interpreter.start(state ?? data);
+
+      interpreter.send(action.action, { ...action.data, isOptimistic: true });
 
       const snapshot = interpreter.getSnapshot();
 
@@ -35,9 +42,10 @@ export default ({ data }: Props) => {
   const clientAdd = async () => {
     setErrors([]);
 
-    const id = Math.random();
-    setOptimisticMachine({ action: 'ADD_TO_CART', data: { id } });
-    const res = await addItem(id);
+    const item = { id: Math.random(), name: randomItem() };
+
+    setOptimisticMachine({ action: 'ADD_TO_CART', data: item });
+    const res = await addItem(item);
 
     if (res?.error) {
       setErrors([{ message: 'There was an error adding to cart' }]);
@@ -71,33 +79,60 @@ export default ({ data }: Props) => {
     await cartBack();
   };
 
+  const opacity = optimisticMachine ? 'opacity-50' : undefined;
+
   return (
-    <div className={optimisticMachine ? 'opacity-50' : undefined}>
-      <header className="mb-6 flex w-96">
-        <div className="flex">
+    <div>
+      <header className="mb-6 flex w-full gap-4">
+        <div
+          className={clsx('flex', {
+            'text-orange-400': !!optimisticMachine,
+            'text-green-400': !optimisticMachine,
+          })}
+        >
           <ShoppingCartIcon className="h-6 w-6" />
           {cart?.length ?? 0}
+        </div>
+        <div className="text-slate-400">current state: {activeState}</div>
+        <div
+          className={clsx({
+            'text-orange-400': !!optimisticMachine,
+            'text-green-400': !optimisticMachine,
+          })}
+        >
+          data source: {optimisticMachine ? 'optimistic client' : 'raw server data'}
         </div>
       </header>
 
       <div className="flex gap-4">
-        <div className="w-96 ring-2 ring-white">
-          <form action={clientAdd}>
+        <div className="flex w-96 flex-col gap-2 p-4 ring-2 ring-white">
+          <form action={clientAdd} className={opacity}>
             <button type="submit" disabled={activeState !== 'idle'}>
               Add to Cart
             </button>
           </form>
-          <form action={clientEmpty}>
+          <form action={clientEmpty} className={opacity}>
             <button type="submit" disabled={activeState !== 'idle'}>
               Empty Cart
             </button>
           </form>
 
-          {activeMachine?.context?.cart?.map((item) => (
-            <div key={item.id} className="p-2 ring-2 ring-red-500">
-              Item - {item.id}
-            </div>
-          ))}
+          <AnimatePresence initial={false}>
+            {activeMachine?.context?.cart?.map((item) => (
+              <motion.div
+                key={item.id}
+                className={clsx('p-2 ring-2', {
+                  'ring-green-400': !item.isOptimistic,
+                  'ring-orange-400': item.isOptimistic,
+                })}
+                // initial={{ y: -40 }}
+                // animate={{ y: 0 }}
+                layout
+              >
+                {item.name}
+              </motion.div>
+            ))}
+          </AnimatePresence>
           {errors.length > 0 &&
             errors.map((err) => (
               <div key={err.message} className="text-red-600">
@@ -107,13 +142,13 @@ export default ({ data }: Props) => {
 
           {activeState === 'idle' && (
             <form action={clientCheckout}>
-              <button type="submit">Checkout</button>
+              <button type="submit">Checkout -&gt;</button>
             </form>
           )}
         </div>
 
         {activeState === 'enterInfo' && (
-          <div className="w-96 ring-2 ring-white">
+          <div className="w-96 p-4 ring-2 ring-white">
             <h3>Enter your Shipping info</h3>
 
             <form action={clientSaveInfo}>
@@ -128,7 +163,7 @@ export default ({ data }: Props) => {
           </div>
         )}
         {activeState === 'enterBilling' && (
-          <div className="w-96 ring-2 ring-white">
+          <div className="w-96 p-4 ring-2 ring-white">
             <h3>Enter your Billing info</h3>
 
             <form action={clientPay}>
@@ -141,10 +176,7 @@ export default ({ data }: Props) => {
             </form>
           </div>
         )}
-        <div className="w-96 overflow-hidden ring-2 ring-white">
-          <div>
-            {optimisticMachine ? 'is optimistic!' : 'is server!'} - {activeState}
-          </div>
+        <div className="w-96 overflow-hidden p-4 text-slate-500 ring-2 ring-slate-500">
           <div>
             <pre>{JSON.stringify(activeMachine, null, 2)}</pre>
           </div>

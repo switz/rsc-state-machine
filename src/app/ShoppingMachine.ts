@@ -71,7 +71,7 @@ const shoppingMachine = createMachine(
         error: (ctx, event) => ({ ...event }),
       }),
       addToCart: assign({
-        cart: (ctx, event) => ctx.cart.concat({ id: event.id }),
+        cart: (ctx, event) => ctx.cart.concat(event),
       }),
       save: assign({
         shipping: (ctx, event) => event.shipping,

@@ -6,7 +6,7 @@ import { interpret } from 'xstate';
 import addToCartMachine from './ShoppingMachine';
 import db from './db';
 
-const DELAY = 3000;
+const DELAY = 1500;
 
 const getCart = () => {
   const existingCart = db.prepare('SELECT * FROM machine where user_id = ?').get(1);
@@ -34,8 +34,17 @@ const saveCart = (cart) => {
   return cart;
 };
 
+interface Item {
+  name: string;
+  id: number;
+}
+
+interface Return extends Item {
+  error?: boolean;
+}
+
 // server action
-export const addItem = async (id: number) => {
+export const addItem = async (item: Item): Promise<Return> => {
   try {
     // artificial delay
     await sleep(DELAY);
@@ -44,9 +53,7 @@ export const addItem = async (id: number) => {
     const cart = getCart();
 
     // state machine transition
-    cart.send('ADD_TO_CART', {
-      id,
-    });
+    cart.send('ADD_TO_CART', item);
 
     // random error 30% of the time
     if (Math.random() < 0.3) {
@@ -57,7 +64,7 @@ export const addItem = async (id: number) => {
     saveCart(cart);
 
     // tell the client everything is ok
-    return { id };
+    return item;
   } catch (err) {
     // this commented code would trigger an error on the server
     /*
@@ -74,7 +81,7 @@ export const addItem = async (id: number) => {
 
     // but instead, we actually just tell the client there was
     // an error since we don't want to persist it
-    return { id, error: true };
+    return { ...item, error: true };
   }
 };
 

@@ -26,6 +26,11 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+button {
+  border: 1px solid #999;
+  padding: 4px 8px;
+  border-radius: 5px;
+}
 
 button:disabled {
   opacity: 0.2;
